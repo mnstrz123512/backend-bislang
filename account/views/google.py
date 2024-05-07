@@ -1,74 +1,85 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from django.contrib.auth.models import User
-from django.contrib.auth.hashers import make_password
-from rest_framework_simplejwt.tokens import RefreshToken
-import requests
 import random
 import os
-import json
+import requests
 
-class GoogleView(APIView):
-    def post(self, request, *args, **kwargs):
-        code = request.GET.get('code')
-        
-        if not code:
-            return Response({"error": "Invalid code"}, status=status.HTTP_400_BAD_REQUEST)
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
 
-        # Exchange the code for a token
-        url = 'https://oauth2.googleapis.com/token'
-        data = {
-            'code': code,
-            'client_id': os.environ.get('GOOGLE_CLIENT_ID'),  
-            'client_secret': os.environ['GOOGLE_CLIENT_SECRET'], 
-            'redirect_uri': 'http://localhost:8000', 
-            'grant_type': 'authorization_code',
-        }
-        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-        response = requests.post(url, data=data, headers=headers)
-        response_data = response.json()
-        
-        print(response_data)
+from django.contrib.auth.hashers import make_password
+from django.core.files.base import ContentFile
+from django.contrib.auth import get_user_model
 
-        # Extract the id_token and verify it
-        id_token = response_data.get('id_token')
-        if id_token:
-            verify_url = f'https://oauth2.googleapis.com/tokeninfo?id_token={id_token}'
-            verify_response = requests.get(verify_url)
-            verify_data = verify_response.json()
+from google.oauth2.id_token import verify_oauth2_token
+from google.auth.transport import requests as google_requests
 
-            email = verify_data.get('email')
-            name = verify_data.get('name')
+from account.serializers.google import GoogleSignInSerializer
 
-            # Check if user exists, if not, create user
-            user, created = User.objects.get_or_create(
-                username=email, defaults={
-                    'email': email,
-                    'first_name': name.split(' ')[0],
-                    'last_name': ' '.join(name.split(' ')[1:]),
-                    'password': make_password(str(random.randint(10000000, 99999999)))
-                }
+
+@api_view(["POST"])
+def sign_in_with_google(request):
+    serializer = GoogleSignInSerializer(data=request.data)
+
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    id_token = serializer.validated_data["id_token"]
+
+    User = get_user_model()
+
+    try:
+        id_info = verify_oauth2_token(
+            id_token, google_requests.Request(), os.getenv("GOOGLE_CLIENT_ID")
+        )
+    except ValueError as e:
+        return Response({"error": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Extract required user information
+    email = id_info["email"]
+    first_name = id_info.get("given_name", "")
+    last_name = id_info.get("family_name", "")
+    profile_image_url = id_info.get("picture", None)
+
+    # Check if user exists, if not, create user
+    user, created = User.objects.get_or_create(
+        username=email,
+        defaults={
+            "email": email,
+            "first_name": first_name,
+            "last_name": last_name,
+            "password": make_password(str(random.randint(10000000, 99999999))),
+            "profile_image": profile_image_url or "",
+        },
+    )
+
+    if profile_image_url and created:
+        response = requests.get(profile_image_url)
+        if response.status_code == 200:
+            # Assuming your ImageField is named 'profile_image'
+            user.profile_image.save(
+                f"{user.username}_profile.jpg", ContentFile(response.content), save=True
             )
+            user.save()
 
-            # Generate tokens
-            refresh = RefreshToken.for_user(user)
-            access_token = str(refresh.access_token)
-            refresh_token = str(refresh)
+    if user.profile_image:
+        # Build the full URL for the profile image
+        profile_image_full_url = request.build_absolute_uri(user.profile_image.url)
+    else:
+        profile_image_full_url = None
 
-            # Prepare user data and tokens for response
-            user_data = {
-                'user': {
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'email_address': user.email,
-                },
-                'tokens': {
-                    'access_token': access_token,
-                    'refresh_token': refresh_token,
-                }
-            }
+    # Generate tokens
+    refresh = RefreshToken.for_user(user)
+    access_token = str(refresh.access_token)
+    refresh_token = str(refresh)
 
-            return Response(user_data)
+    user_data = {
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "profile_image": profile_image_full_url,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+    }
 
-        return Response({'error': 'Failed to authenticate'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response(user_data)
