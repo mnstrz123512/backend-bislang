@@ -1,8 +1,9 @@
+from tabnanny import verbose
 from django.db import models
 from account.models import CustomUser
 
 
-class GameType(models.Model):
+class Type(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField()
 
@@ -11,18 +12,21 @@ class GameType(models.Model):
 
 
 class Game(models.Model):
-    game_type = models.ForeignKey(GameType, on_delete=models.CASCADE)
+    type = models.ForeignKey(Type, on_delete=models.CASCADE)
     answer = models.CharField(max_length=100)
     image = models.ImageField(upload_to="game_images")
 
     def __str__(self):
-        return f"{self.game_type} - {self.answer}"
+        return f"{self.type} - {self.answer}"
 
 
-class GameProgress(models.Model):
+class UserProgress(models.Model):
     game = models.ForeignKey(Game, on_delete=models.CASCADE)
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     is_completed = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name_plural = "User Progress"
 
     def __str__(self):
         return f"{self.user} - {self.game}"

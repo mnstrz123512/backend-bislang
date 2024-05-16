@@ -7,7 +7,7 @@ class GameStackedInline(admin.StackedInline):
     extra = 0
 
 
-class GameTypeAdmin(admin.ModelAdmin):
+class TypeAdmin(admin.ModelAdmin):
     list_display = ("name",)
     inlines = [
         GameStackedInline,

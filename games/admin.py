@@ -1,9 +1,11 @@
 from django.contrib import admin
 
-from games.admins.game_type.admin import GameTypeAdmin
+from games.admins.type.admin import TypeAdmin
 from games.admins.game.admin import GameAdmin
-from .models import GameType, Game
+from games.admins.game_user_progress.admin import UserProgressAdmin
+from .models import Type, Game, UserProgress
 
 
-admin.site.register(GameType, GameTypeAdmin)
+admin.site.register(Type, TypeAdmin)
 admin.site.register(Game, GameAdmin)
+admin.site.register(UserProgress, UserProgressAdmin)
