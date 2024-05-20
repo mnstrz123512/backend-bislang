@@ -1,0 +1,42 @@
+version: "3"
+
+networks:
+  bislang_network:
+    driver: bridge
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bislang_app
+    container_name: bislang_app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env 
+    environment:
+       - DB_HOST=bislang_db
+       - DB_PORT=5432
+       - DB_NAME=bislang
+       - DB_USER=postgres
+       - DB_PASSWORD=bIqZBdiuI2aDjs8
+    volumes:
+      - .:/app
+    networks:
+      - bislang_network
+  postgres:
+    image: postgres:15.5
+    container_name: bislang_db
+    environment:
+      POSTGRES_DB: bislang
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: bIqZBdiuI2aDjs8
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - bislang_network
+volumes:
+  postgres_data:
