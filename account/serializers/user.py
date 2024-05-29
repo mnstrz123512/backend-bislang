@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from account.models import CustomUser
+from account.models import Achievement, CustomUser, UserAchievement, Badge
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 
@@ -26,3 +26,25 @@ class TokenPairSerializer(TokenObtainPairSerializer):
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField()
+
+
+class BadgeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Badge
+        exclude = ["created_at", "updated_at"]
+
+
+class AchievementSerializer(serializers.ModelSerializer):
+    badges = BadgeSerializer(many=True)
+
+    class Meta:
+        model = Achievement
+        exclude = ["created_at", "updated_at"]
+
+
+class UserAchievementSerializer(serializers.ModelSerializer):
+    achievement = AchievementSerializer()
+
+    class Meta:
+        model = UserAchievement
+        exclude = ["created_at", "updated_at"]

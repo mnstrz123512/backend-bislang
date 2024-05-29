@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from games.admins.game_user_progress.admin import UserProgressStackedInlineAdmin
+from games.admins.progress.admin import UserProgressStackedInlineAdmin
 
 
 class GameAdmin(admin.ModelAdmin):

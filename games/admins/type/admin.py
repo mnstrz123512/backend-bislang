@@ -1,5 +1,6 @@
 from django.contrib import admin
 from games.models import Game
+from .forms import TypeForm
 
 
 class GameStackedInline(admin.StackedInline):
@@ -9,6 +10,7 @@ class GameStackedInline(admin.StackedInline):
 
 class TypeAdmin(admin.ModelAdmin):
     list_display = ("name",)
+    form = TypeForm
     inlines = [
         GameStackedInline,
     ]

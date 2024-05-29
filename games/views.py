@@ -1,8 +1,9 @@
 from rest_framework import viewsets, status
-from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticated
 
-from games.models import Type, Game, UserProgress
+from games.models import Type, Game
+from account.models import UserProgress
+from django.contrib.contenttypes.models import ContentType
 from games.serializers import TypeSerializer, GameSerializer, UserProgressSerializer
 from rest_framework.response import Response
 
@@ -14,39 +15,54 @@ class TypeViewset(viewsets.ReadOnlyModelViewSet):
 
 
 class GameViewset(viewsets.ReadOnlyModelViewSet):
-    permission_class = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     queryset = Game.objects.all()
     serializer_class = GameSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ["type"]
+
+    def get_queryset(self):
+        queryset = Game.objects.all()
+        type = self.request.query_params.get("type")
+        if type:
+            queryset = queryset.filter(type=type)
+        return queryset
 
 
-class UserProgressViewset(viewsets.ModelViewSet):
+class GameUserProgressViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
-    queryset = UserProgress.objects.all()
     serializer_class = UserProgressSerializer
     http_method_names = ["get", "post"]
 
     def get_queryset(self):
-        return UserProgress.objects.filter(user=self.request.user)
+        user = self.request.user
+        game_content_type = ContentType.objects.get_for_model(Game)
+        return UserProgress.objects.filter(user=user, content_type=game_content_type)
 
     def create(self, request, *args, **kwargs):
-        game_id = request.data.get("game")
         user = request.user
+        game_id = request.data.get("game")
 
-        # Try to get the existing progress object, or create a new one if it doesn't exist
+        if not game_id:
+            return Response(
+                {"error": "Game ID must be provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            game = Game.objects.get(pk=game_id)
+        except Game.DoesNotExist:
+            return Response(
+                {"error": "Game not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        game_content_type = ContentType.objects.get_for_model(Game)
+
         progress, created = UserProgress.objects.get_or_create(
-            user=user, game_id=game_id
+            user=user, content_type=game_content_type, object_id=game.id
         )
 
-        # Update the progress object with data from the request
         serializer = self.get_serializer(progress, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
+        serializer.save()
 
-        # Determine the appropriate status code
         status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
         return Response(serializer.data, status=status_code)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
