@@ -10,7 +10,7 @@ class ModuleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Module
-        exclude = ["created_at", "updated_at"]
+        exclude = ["created_at", "updated_at", "is_archived"]
 
     def get_total_pages(self, obj):
         return obj.pages.count()
@@ -34,7 +34,7 @@ class PageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Page
-        fields = "__all__"
+        exclude = ["created_at", "updated_at", "is_archived"]
 
     def get_is_completed(self, obj):
         request = self.context.get("request")

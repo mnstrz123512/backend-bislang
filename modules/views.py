@@ -21,7 +21,7 @@ from .serializers import ModuleUserProgressSerializer
 
 
 class ModuleViewset(viewsets.ModelViewSet):
-    queryset = Module.objects.all()
+    queryset = Module.objects.filter(is_archived=False)
     serializer_class = ModuleSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
@@ -29,7 +29,7 @@ class ModuleViewset(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"])
     def pages(self, request, pk=None):
         module = self.get_object()
-        pages = module.pages.all()
+        pages = module.pages.filter(is_archived=False)
         pages_serializer = PageSerializer(
             pages, many=True, context={"request": request}
         )
@@ -38,7 +38,7 @@ class ModuleViewset(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], url_path="pages/(?P<page_pk>\d+)")
     def page_detail(self, request, pk=None, page_pk=None):
         module = self.get_object()
-        page = get_object_or_404(module.pages, pk=page_pk)
+        page = get_object_or_404(module.pages.filter(is_archived=False), pk=page_pk)
         serializer = PageSerializer(page, context={"request": request})
         return Response(serializer.data)
 
@@ -63,7 +63,7 @@ class ModuleViewset(viewsets.ModelViewSet):
 
             if module.achievement:
                 all_completed = (
-                    module.pages.all()
+                    module.pages.filter(is_archived=False)
                     .annotate(
                         completed=Exists(
                             UserProgress.objects.filter(
