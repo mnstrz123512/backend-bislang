@@ -10,7 +10,7 @@ class TypeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Type
-        fields = ["id", "name", "description", "total_games", "total_completed_games"]
+        exclude = ["is_archived"]
 
     def get_total_games(self, obj):
         # Total games for this type
@@ -40,7 +40,7 @@ class GameSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Game
-        fields = "__all__"
+        exclude = ["is_archived"]
 
     def get_is_completed(self, obj):
         user = self.context["request"].user
