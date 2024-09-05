@@ -15,6 +15,7 @@ import os
 from datetime import timedelta
 import environ
 
+APPEND_SLASH = True
 # Initialize environ
 env = environ.Env()
 environ.Env.read_env(os.path.join(os.path.dirname(__file__), "../.env"))
